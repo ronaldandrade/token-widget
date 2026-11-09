@@ -137,7 +137,6 @@ token-widget/
 - Limite do Claude: depende da status line e de assinatura Pro/Max; só atualiza com o Claude Code aberto.
 - Os limites são porcentagens. Nenhuma das ferramentas informa quantos tokens cabem numa sessão.
 
-
 ## Licença
 
 MIT. Pode usar, modificar e redistribuir, mantendo o aviso de copyright do arquivo `LICENSE`.
