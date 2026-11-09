@@ -20,10 +20,13 @@ import urllib.error
 import urllib.request
 from datetime import datetime
 
-import gi
+try:  # libsecret é opcional: sem ele, só a cota do Gemini fica indisponível
+    import gi
 
-gi.require_version("Secret", "1")
-from gi.repository import Secret  # noqa: E402
+    gi.require_version("Secret", "1")
+    from gi.repository import Secret  # noqa: E402
+except (ImportError, ValueError):
+    Secret = None
 
 BASE = "https://daily-cloudcode-pa.googleapis.com/v1internal:"
 CACHE_DIR = os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"),
@@ -33,7 +36,7 @@ CACHE = os.path.join(CACHE_DIR, "gemini-quota.json")
 _SCHEMA = Secret.Schema.new(
     "org.freedesktop.Secret.Generic", Secret.SchemaFlags.DONT_MATCH_NAME,
     {"service": Secret.SchemaAttributeType.STRING,
-     "username": Secret.SchemaAttributeType.STRING})
+     "username": Secret.SchemaAttributeType.STRING}) if Secret else None
 
 _user_agent = None
 _project = None
@@ -56,6 +59,8 @@ def _agy_user_agent():
 
 
 def _access_token():
+    if Secret is None:
+        return None, "instale gir1.2-secret-1"
     raw = Secret.password_lookup_sync(
         _SCHEMA, {"service": "gemini", "username": "antigravity"}, None)
     if not raw:

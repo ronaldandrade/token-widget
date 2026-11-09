@@ -51,6 +51,16 @@ class SettingsWindow(Gtk.Window):
         top.connect("notify::active", self.on_top)
         grid.attach(top, 1, row, 1, 1); row += 1
 
+        # ---- cota do Gemini
+        section("Gemini", row); row += 1
+        label("Cota da sessão via login do agy", row,
+              "Usa o login do Antigravity CLI (chaveiro do sistema) para consultar a cota no Google, "
+              "pelos mesmos endpoints não oficiais que o agy usa. Podem mudar sem aviso.")
+        gq = Gtk.Switch(halign=Gtk.Align.START)
+        gq.set_active(bool(cfg.get("gemini_quota")))
+        gq.connect("notify::active", self.on_gemini_quota)
+        grid.attach(gq, 1, row, 1, 1); row += 1
+
         # ---- atualização
         section("Atualização", row); row += 1
         label("Atualizar a cada (segundos)", row)
@@ -87,6 +97,11 @@ class SettingsWindow(Gtk.Window):
     def on_top(self, switch, _param):
         # o item do menu cuida de aplicar e salvar
         self.tw.top_item.set_active(switch.get_active())
+
+    def on_gemini_quota(self, switch, _param):
+        self.tw.cfg["gemini_quota"] = switch.get_active()
+        self.tw.poll_gemini()
+        self.tw.refresh()
 
     def on_refresh(self, spin):
         self.tw.set_refresh(spin.get_value_as_int())

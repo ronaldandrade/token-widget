@@ -29,6 +29,8 @@ DEFAULT_CONFIG = {
     "opacity": 0.88,
     # True = fica na frente das outras janelas; False = fica no fundo (desktop).
     "always_on_top": False,
+    # Consulta a cota do Gemini no Google usando o login do agy (endpoints não oficiais).
+    "gemini_quota": False,
     # Nomes amigáveis para os ids numéricos de modelo do Antigravity.
     "gemini_model_names": {},
     # Meta diária opcional (tokens). 0 = sem barra de meta.
@@ -130,6 +132,10 @@ class TokenWidget(Gtk.Window):
         GLib.timeout_add_seconds(300, self.poll_gemini)
 
     def poll_gemini(self):
+        if not self.cfg.get("gemini_quota"):
+            self.gemini_err = None
+            return True
+
         def work():
             _data, err = gemini_quota.fetch()
             GLib.idle_add(self._gemini_done, err)
@@ -202,7 +208,7 @@ class TokenWidget(Gtk.Window):
             collectors.gemini_usage(self.cfg.get("gemini_model_names"))
         self.data = stats.summarize(usages)
         self.limits = {"claude": collectors.claude_limits(),
-                       "gemini": gemini_quota.cached()}
+                       "gemini": gemini_quota.cached() if self.cfg.get("gemini_quota") else None}
         self.updated_at = GLib.DateTime.new_now_local().format("%H:%M")
         self.area.queue_draw()
         return True
@@ -268,7 +274,10 @@ class TokenWidget(Gtk.Window):
         elif key == "claude":
             left = "sessão: abra o Claude Code para carregar"
         else:
-            left = f"cota: {self.gemini_err or 'consultando…'}"
+            if not self.cfg.get("gemini_quota"):
+                left = "cota: desligada (botão direito → Configurações)"
+            else:
+                left = f"cota: {self.gemini_err or 'consultando…'}"
 
         cr.set_font_size(9.5)
         cr.set_source_rgba(1, 1, 1, 0.45)
