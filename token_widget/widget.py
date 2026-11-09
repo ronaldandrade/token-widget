@@ -9,7 +9,7 @@ import json
 import math
 import os
 import signal
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import gi
 
@@ -35,7 +35,7 @@ DEFAULT_CONFIG = {
 }
 
 W, PAD = 300, 16
-SECTION_H = 128
+SECTION_H = 142
 PROVIDERS = [
     # (chave, rótulo, cor RGB)
     ("claude", "Claude", (0.85, 0.47, 0.34)),
@@ -74,6 +74,7 @@ class TokenWidget(Gtk.Window):
         super().__init__(title="Token Widget")
         self.cfg = load_config()
         self.data = None
+        self.limits = None
         self.updated_at = None
 
         self.set_decorated(False)
@@ -183,6 +184,7 @@ class TokenWidget(Gtk.Window):
         usages = collectors.claude_usage() + \
             collectors.gemini_usage(self.cfg.get("gemini_model_names"))
         self.data = stats.summarize(usages)
+        self.limits = collectors.claude_limits()
         self.updated_at = GLib.DateTime.new_now_local().format("%H:%M")
         self.area.queue_draw()
         return True
@@ -218,6 +220,59 @@ class TokenWidget(Gtk.Window):
         for key, label, color in PROVIDERS:
             self.draw_provider(cr, PAD, y, alloc_w - 2 * PAD, key, label, color)
             y += SECTION_H
+
+    def draw_limit(self, cr, x, y, w, key, today, color):
+        """Linha de texto em `y` e barra logo abaixo."""
+        frac, left, right = None, None, None
+        limits = self.limits if key == "claude" else None
+        budget = (self.cfg.get("daily_budget") or {}).get(key) or 0
+        session = (limits or {}).get("five_hour")
+
+        if session:
+            left = "sessão (5 h)"
+            if session.get("renewed"):
+                frac, right = 0.0, "renovada · abra o Claude Code"
+            else:
+                frac = session["used_percentage"] / 100
+                right = f"{session['used_percentage']:.0f}%"
+                if session.get("resets_at"):
+                    right += " · renova " + datetime.fromtimestamp(
+                        session["resets_at"]).strftime("%H:%M")
+                week = limits.get("seven_day")
+                if week and not week.get("renewed"):
+                    right += f" · semana {week['used_percentage']:.0f}%"
+        elif budget:
+            frac = today.get("total", 0) / budget
+            left, right = "meta diária", f"{frac * 100:.0f}%"
+        elif key == "claude":
+            left = "sessão: abra o Claude Code para carregar"
+        else:
+            left = "sessão: o Antigravity não expõe a cota"
+
+        cr.set_font_size(9.5)
+        cr.set_source_rgba(1, 1, 1, 0.45)
+        cr.move_to(x, y)
+        cr.show_text(left)
+        if right:
+            cr.set_source_rgba(1, 1, 1, 0.75)
+            ext = cr.text_extents(right)
+            cr.move_to(x + w - ext.width - ext.x_bearing, y)
+            cr.show_text(right)
+        if frac is None:
+            return
+        bar_top = y + 5
+        rounded_rect(cr, x, bar_top, w, 4, 2)
+        cr.set_source_rgba(1, 1, 1, 0.1)
+        cr.fill()
+        if frac > 0:
+            rounded_rect(cr, x, bar_top, max(4, w * min(1.0, frac)), 4, 2)
+            if frac >= 1:
+                cr.set_source_rgb(0.93, 0.33, 0.31)
+            elif frac >= 0.8:
+                cr.set_source_rgb(0.95, 0.70, 0.25)
+            else:
+                cr.set_source_rgb(*color)
+            cr.fill()
 
     def draw_provider(self, cr, x, y, w, key, label, color):
         d = self.data[key]
@@ -260,22 +315,12 @@ class TokenWidget(Gtk.Window):
             f"cache {stats.fmt(today.get('cache', 0))}"
         )
 
-        # meta diária opcional
-        budget = (self.cfg.get("daily_budget") or {}).get(key) or 0
-        bar_top = y + 54
-        if budget:
-            frac = min(1.0, today.get("total", 0) / budget)
-            rounded_rect(cr, x, bar_top, w, 4, 2)
-            cr.set_source_rgba(1, 1, 1, 0.1)
-            cr.fill()
-            if frac > 0:
-                rounded_rect(cr, x, bar_top, max(4, w * frac), 4, 2)
-                cr.set_source_rgb(*((0.93, 0.33, 0.31) if frac >= 1 else color))
-                cr.fill()
+        # limite da sessão (padrão) ou meta diária manual
+        self.draw_limit(cr, x, y + 62, w, key, today, color)
 
         # barras dos últimos 7 dias
         series = d["series"]
-        chart_top, chart_h = y + 66, 34
+        chart_top, chart_h = y + 82, 34
         n = len(series)
         gap = 6
         bw = (w - 110 - gap * (n - 1)) / n

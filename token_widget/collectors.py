@@ -147,3 +147,29 @@ def gemini_usage(model_names=None):
     for f in glob.glob(os.path.join(ANTIGRAVITY_DIR, "*.db")):
         out.extend(_cached(f, lambda p: _load_antigravity(p, model_names)))
     return out
+
+
+# --------------------------------------------------------------------------
+# Limite da sessão do Claude (gravado pela status line, ver claude_statusline.py)
+# --------------------------------------------------------------------------
+
+CLAUDE_LIMITS = os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"),
+                             "token-widget", "claude-limits.json")
+
+
+def claude_limits():
+    """Devolve {"five_hour": {...}, "seven_day": {...}, "saved_at": ts} ou None.
+
+    Se a janela já renovou desde a última leitura, marca `renewed=True`
+    (o uso real da nova janela só aparece quando o Claude Code rodar de novo)."""
+    try:
+        with open(CLAUDE_LIMITS, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    now = datetime.now(timezone.utc).timestamp()
+    for key in ("five_hour", "seven_day"):
+        win = data.get(key)
+        if win:
+            win["renewed"] = bool(win.get("resets_at")) and win["resets_at"] <= now
+    return data

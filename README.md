@@ -9,6 +9,15 @@ Os dados vêm direto dos arquivos locais, sem chave de API:
 | Claude Code | `~/.claude/projects/**/*.jsonl` (campo `message.usage`) |
 | Gemini (Antigravity CLI) | `~/.gemini/antigravity-cli/conversations/*.db` (SQLite com protobuf) |
 
+## Limite da sessão
+
+- **Claude:** a barra mostra quanto da sessão de 5 h já foi usado, quando ela renova e o uso da semana.
+  O dado vem da status line do Claude Code: `token_widget/claude_statusline.py` está configurado em
+  `~/.claude/settings.json` (`statusLine`) e grava `~/.cache/token-widget/claude-limits.json`.
+  Só atualiza enquanto o Claude Code está aberto.
+- **Gemini (Antigravity):** o agy não grava a cota em disco nem a entrega para hooks ou servidores
+  MCP, então o widget não tem como mostrar. Dá para usar a meta diária manual no lugar.
+
 ## Rodar
 
 Precisa do Python do sistema com GTK3 (`python3-gi`, já vem no Ubuntu).

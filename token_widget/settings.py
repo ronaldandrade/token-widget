@@ -60,7 +60,10 @@ class SettingsWindow(Gtk.Window):
         grid.attach(refresh, 1, row, 1, 1); row += 1
 
         # ---- metas
-        section("Meta diária (mil tokens, 0 = sem meta)", row); row += 1
+        section("Meta diária manual (mil tokens, 0 = sem meta)", row); row += 1
+        hint = Gtk.Label(xalign=0)
+        hint.set_markup("<small>Só aparece quando não há limite de sessão (ex.: Gemini).</small>")
+        grid.attach(hint, 0, row, 2, 1); row += 1
         budget = cfg.get("daily_budget") or {}
         for key, name in (("claude", "Claude"), ("gemini", "Gemini")):
             label(name, row)
