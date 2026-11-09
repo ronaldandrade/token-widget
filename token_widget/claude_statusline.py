@@ -12,6 +12,9 @@ import sys
 import time
 from datetime import datetime
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from token_widget.i18n import set_language, t  # noqa: E402
+
 CACHE = os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"),
                      "token-widget", "claude-limits.json")
 
@@ -59,19 +62,20 @@ def main():
         except OSError:
             pass
 
+    set_language("auto")
     parts = []
     model = (data.get("model") or {}).get("display_name")
     if model:
         parts.append(model)
     s = out["five_hour"]
     if s:
-        txt = f"sessão {s['used_percentage']:.0f}%"
+        txt = t("sl_session", pct=f"{s['used_percentage']:.0f}%")
         if s["resets_at"]:
-            txt += " · renova " + datetime.fromtimestamp(s["resets_at"]).strftime("%H:%M")
+            txt += " · " + t("sl_resets", time=datetime.fromtimestamp(s["resets_at"]).strftime("%H:%M"))
         parts.append(txt)
     w = out["seven_day"]
     if w:
-        parts.append(f"semana {w['used_percentage']:.0f}%")
+        parts.append(t("sl_week", pct=f"{w['used_percentage']:.0f}%"))
     print("  |  ".join(parts))
 
 

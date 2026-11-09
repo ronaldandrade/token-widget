@@ -19,6 +19,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
 from . import collectors, gemini_quota, stats  # noqa: E402
+from .i18n import APP_NAMES, set_language, t  # noqa: E402
 from .settings import SettingsWindow  # noqa: E402
 
 CONFIG_PATH = os.path.expanduser("~/.config/token-widget/config.json")
@@ -29,6 +30,8 @@ DEFAULT_CONFIG = {
     "opacity": 0.88,
     # True = fica na frente das outras janelas; False = fica no fundo (desktop).
     "always_on_top": False,
+    # "auto" (segue o idioma do sistema), "pt" ou "en"
+    "language": "auto",
     # Consulta a cota do Gemini no Google usando o login do agy (endpoints não oficiais).
     "gemini_quota": False,
     # Nomes amigáveis para os ids numéricos de modelo do Antigravity.
@@ -44,7 +47,6 @@ PROVIDERS = [
     ("claude", "Claude", (0.85, 0.47, 0.34)),
     ("gemini", "Gemini", (0.40, 0.58, 0.96)),
 ]
-DAY_LETTERS = "STQQSSD"  # seg..dom
 
 
 def load_config():
@@ -76,6 +78,7 @@ class TokenWidget(Gtk.Window):
     def __init__(self):
         super().__init__(title="Token Widget")
         self.cfg = load_config()
+        set_language(self.cfg.get("language", "auto"))
         self.data = None
         self.limits = {}
         self.gemini_err = None
@@ -107,21 +110,7 @@ class TokenWidget(Gtk.Window):
         self.connect("destroy", Gtk.main_quit)
 
         self.settings_win = None
-        self.menu = Gtk.Menu()
-        cfg_item = Gtk.MenuItem(label="Configurações…")
-        cfg_item.connect("activate", lambda *_: self.open_settings())
-        self.menu.append(cfg_item)
-        top = Gtk.CheckMenuItem(label="Sempre na frente")
-        top.set_active(bool(self.cfg.get("always_on_top")))
-        top.connect("toggled", self.on_toggle_top)
-        self.menu.append(top)
-        self.top_item = top
-        for label, cb in (("Atualizar", lambda *_: self.refresh()),
-                          ("Sair", lambda *_: Gtk.main_quit())):
-            item = Gtk.MenuItem(label=label)
-            item.connect("activate", cb)
-            self.menu.append(item)
-        self.menu.show_all()
+        self.build_menu()
 
         self.place()
         self.refresh()
@@ -156,6 +145,29 @@ class TokenWidget(Gtk.Window):
                 Gdk.Display.get_default().get_monitor(0)
             r = geo.get_workarea()
             self.move(r.x + r.width - W - 24, r.y + 24)
+
+    def build_menu(self):
+        self.menu = Gtk.Menu()
+        cfg_item = Gtk.MenuItem(label=t("menu_settings"))
+        cfg_item.connect("activate", lambda *_: self.open_settings())
+        self.menu.append(cfg_item)
+        top = Gtk.CheckMenuItem(label=t("menu_on_top"))
+        top.set_active(bool(self.cfg.get("always_on_top")))
+        top.connect("toggled", self.on_toggle_top)
+        self.menu.append(top)
+        self.top_item = top
+        for label, cb in ((t("menu_refresh"), lambda *_: self.refresh()),
+                          (t("menu_quit"), lambda *_: Gtk.main_quit())):
+            item = Gtk.MenuItem(label=label)
+            item.connect("activate", cb)
+            self.menu.append(item)
+        self.menu.show_all()
+
+    def set_language(self, choice):
+        self.cfg["language"] = choice
+        set_language(choice)
+        self.build_menu()
+        self.area.queue_draw()
 
     def set_refresh(self, seconds):
         seconds = max(10, int(seconds))
@@ -231,9 +243,9 @@ class TokenWidget(Gtk.Window):
         cr.set_font_size(11)
         cr.set_source_rgba(1, 1, 1, 0.55)
         cr.move_to(PAD, y)
-        cr.show_text("TOKENS DE IA")
+        cr.show_text(t("title"))
         if self.updated_at:
-            txt = f"atualizado {self.updated_at}"
+            txt = t("updated", time=self.updated_at)
             ext = cr.text_extents(txt)
             cr.move_to(alloc_w - PAD - ext.width, y)
             cr.show_text(txt)
@@ -253,31 +265,31 @@ class TokenWidget(Gtk.Window):
         session = (limits or {}).get("five_hour")
 
         if session:
-            left = "sessão (5 h)" if key == "claude" else "cota da sessão"
+            left = t("session_" + key)
             if session.get("renewed"):
-                app = "o Claude Code" if key == "claude" else "o agy"
-                frac, right = 0.0, f"renovada · abra {app}"
+                frac, right = 0.0, t("renewed", app=APP_NAMES[key])
             else:
                 frac = session["used_percentage"] / 100
                 right = f"{session['used_percentage']:.0f}%"
                 if session.get("resets_at"):
-                    right += " · renova " + datetime.fromtimestamp(
-                        session["resets_at"]).strftime("%H:%M")
+                    right += " · " + t("resets", time=datetime.fromtimestamp(
+                        session["resets_at"]).strftime("%H:%M"))
                 if key == "gemini" and self.gemini_err:
-                    right += " · dado antigo"
+                    right += " · " + t("stale")
                 week = limits.get("seven_day")
                 if week and not week.get("renewed"):
-                    right += f" · semana {week['used_percentage']:.0f}%"
+                    right += " · " + t("week", pct=f"{week['used_percentage']:.0f}%")
         elif budget:
             frac = today.get("total", 0) / budget
-            left, right = "meta diária", f"{frac * 100:.0f}%"
+            left, right = t("budget"), f"{frac * 100:.0f}%"
         elif key == "claude":
-            left = "sessão: abra o Claude Code para carregar"
+            left = t("claude_no_data")
         else:
             if not self.cfg.get("gemini_quota"):
-                left = "cota: desligada (botão direito → Configurações)"
+                left = t("gemini_off")
             else:
-                left = f"cota: {self.gemini_err or 'consultando…'}"
+                msg = t("gerr_" + self.gemini_err) if self.gemini_err else t("gemini_loading")
+                left = t("gemini_err", msg=msg)
 
         cr.set_font_size(9.5)
         cr.set_source_rgba(1, 1, 1, 0.45)
@@ -330,7 +342,7 @@ class TokenWidget(Gtk.Window):
         cr.show_text(big)
         cr.set_font_size(10)
         cr.set_source_rgba(1, 1, 1, 0.5)
-        hoje = "hoje"
+        hoje = t("today")
         e2 = cr.text_extents(hoje)
         cr.move_to(x + w - ext.width - e2.width - 8, y + 30)
         cr.show_text(hoje)
@@ -365,14 +377,14 @@ class TokenWidget(Gtk.Window):
             cr.fill()
             cr.set_font_size(8.5)
             cr.set_source_rgba(1, 1, 1, 0.4)
-            letter = DAY_LETTERS[(start + timedelta(days=i)).weekday()]
+            letter = t("days")[(start + timedelta(days=i)).weekday()]
             le = cr.text_extents(letter)
             cr.move_to(bx + bw / 2 - le.width / 2, chart_top + chart_h + 12)
             cr.show_text(letter)
 
         # semana / mês
         sx = x + w - 96
-        for j, (lbl, val) in enumerate((("7 dias", d["week"]), ("mês", d["month"]))):
+        for j, (lbl, val) in enumerate(((t("days7"), d["week"]), (t("month"), d["month"]))):
             ty = chart_top + 6 + j * 24
             cr.set_font_size(9)
             cr.set_source_rgba(1, 1, 1, 0.45)

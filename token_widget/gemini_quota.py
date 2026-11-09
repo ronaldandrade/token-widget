@@ -60,11 +60,11 @@ def _agy_user_agent():
 
 def _access_token():
     if Secret is None:
-        return None, "instale gir1.2-secret-1"
+        return None, "no_secret"
     raw = Secret.password_lookup_sync(
         _SCHEMA, {"service": "gemini", "username": "antigravity"}, None)
     if not raw:
-        return None, "sem login do agy no chaveiro"
+        return None, "no_login"
     tok = json.loads(raw).get("token") or {}
     expiry = tok.get("expiry")
     if expiry:
@@ -76,7 +76,7 @@ def _access_token():
         except ValueError:
             exp = None
         if exp and exp < time.time() + 30:
-            return None, "token do agy vencido (abra o agy para renovar)"
+            return None, "token_expired"
     return tok.get("access_token"), None
 
 
@@ -98,7 +98,7 @@ def _parse_time(value):
 
 
 def fetch():
-    """Consulta o Google e grava o cache. Devolve (dados, erro)."""
+    """Consulta o Google e grava o cache. Devolve (dados, código de erro)."""
     global _project
     token, err = _access_token()
     if not token:
@@ -108,10 +108,11 @@ def fetch():
             info = _call("loadCodeAssist", {"metadata": {"ideType": "ANTIGRAVITY"}}, token)
             _project = info.get("cloudaicompanionProject")
             if not _project:
-                return None, "conta sem projeto do Code Assist"
+                return None, "no_project"
         models = _call("fetchAvailableModels", {"project": _project}, token).get("models") or {}
     except (urllib.error.URLError, OSError, ValueError) as exc:
-        return None, f"falha na consulta: {exc}"
+        print(f"[token-widget] cota do Gemini: {exc}")
+        return None, "fetch_failed"
 
     # Os modelos Gemini compartilham a mesma cota; pega o pior caso entre eles.
     best = None
@@ -123,7 +124,7 @@ def fetch():
         if best is None or frac < best[0]:
             best = (frac, q["resetTime"], model_id)
     if best is None:
-        return None, "nenhum modelo Gemini com cota"
+        return None, "no_model"
 
     data = {
         "saved_at": time.time(),

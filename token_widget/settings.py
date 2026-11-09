@@ -6,10 +6,12 @@ gravado ao fechar a janela.
 
 from gi.repository import Gtk
 
+from .i18n import t
+
 
 class SettingsWindow(Gtk.Window):
     def __init__(self, widget):
-        super().__init__(title="Token Widget — Configurações")
+        super().__init__(title=t("set_title"))
         self.tw = widget
         cfg = widget.cfg
 
@@ -34,9 +36,17 @@ class SettingsWindow(Gtk.Window):
             grid.attach(lbl, 0, row, 2, 1)
 
         # ---- aparência
-        section("Aparência", row); row += 1
+        section(t("set_appearance"), row); row += 1
 
-        label("Opacidade do fundo", row)
+        label(t("set_language"), row)
+        lang = Gtk.ComboBoxText()
+        for code, name in (("auto", t("set_lang_auto")), ("pt", "Português"), ("en", "English")):
+            lang.append(code, name)
+        lang.set_active_id(cfg.get("language", "auto"))
+        lang.connect("changed", self.on_language)
+        grid.attach(lang, 1, row, 1, 1); row += 1
+
+        label(t("set_opacity"), row)
         opacity = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0.2, 1.0, 0.05)
         opacity.set_value(float(cfg.get("opacity", 0.88)))
         opacity.set_size_request(200, -1)
@@ -45,34 +55,32 @@ class SettingsWindow(Gtk.Window):
         opacity.connect("value-changed", self.on_opacity)
         grid.attach(opacity, 1, row, 1, 1); row += 1
 
-        label("Sempre na frente", row, "Desligado: o widget fica no fundo, atrás das janelas.")
+        label(t("set_on_top"), row, t("set_on_top_tip"))
         top = Gtk.Switch(halign=Gtk.Align.START)
         top.set_active(bool(cfg.get("always_on_top")))
         top.connect("notify::active", self.on_top)
         grid.attach(top, 1, row, 1, 1); row += 1
 
         # ---- cota do Gemini
-        section("Gemini", row); row += 1
-        label("Cota da sessão via login do agy", row,
-              "Usa o login do Antigravity CLI (chaveiro do sistema) para consultar a cota no Google, "
-              "pelos mesmos endpoints não oficiais que o agy usa. Podem mudar sem aviso.")
+        section(t("set_gemini"), row); row += 1
+        label(t("set_gemini_quota"), row, t("set_gemini_quota_tip"))
         gq = Gtk.Switch(halign=Gtk.Align.START)
         gq.set_active(bool(cfg.get("gemini_quota")))
         gq.connect("notify::active", self.on_gemini_quota)
         grid.attach(gq, 1, row, 1, 1); row += 1
 
         # ---- atualização
-        section("Atualização", row); row += 1
-        label("Atualizar a cada (segundos)", row)
+        section(t("set_refresh_section"), row); row += 1
+        label(t("set_refresh"), row)
         refresh = Gtk.SpinButton.new_with_range(10, 3600, 10)
         refresh.set_value(int(cfg.get("refresh_seconds", 60)))
         refresh.connect("value-changed", self.on_refresh)
         grid.attach(refresh, 1, row, 1, 1); row += 1
 
         # ---- metas
-        section("Meta diária manual (mil tokens, 0 = sem meta)", row); row += 1
+        section(t("set_budget"), row); row += 1
         hint = Gtk.Label(xalign=0)
-        hint.set_markup("<small>Só aparece quando não há limite de sessão (ex.: Gemini).</small>")
+        hint.set_markup(f"<small>{t('set_budget_hint')}</small>")
         grid.attach(hint, 0, row, 2, 1); row += 1
         budget = cfg.get("daily_budget") or {}
         for key, name in (("claude", "Claude"), ("gemini", "Gemini")):
@@ -82,7 +90,7 @@ class SettingsWindow(Gtk.Window):
             spin.connect("value-changed", self.on_budget, key)
             grid.attach(spin, 1, row, 1, 1); row += 1
 
-        close = Gtk.Button(label="Fechar", halign=Gtk.Align.END)
+        close = Gtk.Button(label=t("set_close"), halign=Gtk.Align.END)
         close.connect("clicked", lambda *_: self.on_close())
         grid.attach(close, 1, row, 1, 1)
 
@@ -97,6 +105,13 @@ class SettingsWindow(Gtk.Window):
     def on_top(self, switch, _param):
         # o item do menu cuida de aplicar e salvar
         self.tw.top_item.set_active(switch.get_active())
+
+    def on_language(self, combo):
+        tw = self.tw
+        tw.set_language(combo.get_active_id())
+        # reabre a janela para trocar os textos
+        self.on_close()
+        tw.open_settings()
 
     def on_gemini_quota(self, switch, _param):
         self.tw.cfg["gemini_quota"] = switch.get_active()
