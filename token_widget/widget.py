@@ -25,6 +25,8 @@ DEFAULT_CONFIG = {
     "y": None,
     "refresh_seconds": 60,
     "opacity": 0.88,
+    # True = fica na frente das outras janelas; False = fica no fundo (desktop).
+    "always_on_top": False,
     # Nomes amigáveis para os ids numéricos de modelo do Antigravity.
     "gemini_model_names": {},
     # Meta diária opcional (tokens). 0 = sem barra de meta.
@@ -77,7 +79,7 @@ class TokenWidget(Gtk.Window):
         self.set_skip_taskbar_hint(True)
         self.set_skip_pager_hint(True)
         self.set_type_hint(Gdk.WindowTypeHint.UTILITY)
-        self.set_keep_below(True)
+        self.apply_layer()
         self.stick()
         self.set_app_paintable(True)
         visual = self.get_screen().get_rgba_visual()
@@ -99,6 +101,10 @@ class TokenWidget(Gtk.Window):
         self.connect("destroy", Gtk.main_quit)
 
         self.menu = Gtk.Menu()
+        top = Gtk.CheckMenuItem(label="Sempre na frente")
+        top.set_active(bool(self.cfg.get("always_on_top")))
+        top.connect("toggled", self.on_toggle_top)
+        self.menu.append(top)
         for label, cb in (("Atualizar", lambda *_: self.refresh()),
                           ("Sair", lambda *_: Gtk.main_quit())):
             item = Gtk.MenuItem(label=label)
@@ -119,6 +125,16 @@ class TokenWidget(Gtk.Window):
                 Gdk.Display.get_default().get_monitor(0)
             r = geo.get_workarea()
             self.move(r.x + r.width - W - 24, r.y + 24)
+
+    def apply_layer(self):
+        on_top = bool(self.cfg.get("always_on_top"))
+        self.set_keep_below(not on_top)
+        self.set_keep_above(on_top)
+
+    def on_toggle_top(self, item):
+        self.cfg["always_on_top"] = item.get_active()
+        self.apply_layer()
+        save_config(self.cfg)
 
     def on_configure(self, *_):
         x, y = self.get_position()
