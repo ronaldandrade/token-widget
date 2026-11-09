@@ -15,8 +15,10 @@ Os dados vêm direto dos arquivos locais, sem chave de API:
   O dado vem da status line do Claude Code: `token_widget/claude_statusline.py` está configurado em
   `~/.claude/settings.json` (`statusLine`) e grava `~/.cache/token-widget/claude-limits.json`.
   Só atualiza enquanto o Claude Code está aberto.
-- **Gemini (Antigravity):** o agy não grava a cota em disco nem a entrega para hooks ou servidores
-  MCP, então o widget não tem como mostrar. Dá para usar a meta diária manual no lugar.
+- **Gemini (Antigravity):** o widget usa o login do agy (token no chaveiro do sistema, serviço
+  `gemini`) para pedir ao Google a cota dos modelos, como o próprio agy faz
+  (`token_widget/gemini_quota.py`, a cada 5 min). Os endpoints não são documentados e podem mudar.
+  O token dura ~1 h e só o agy o renova; vencido, o widget mostra o último valor ("dado antigo").
 
 ## Rodar
 

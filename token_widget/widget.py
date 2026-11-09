@@ -9,6 +9,7 @@ import json
 import math
 import os
 import signal
+import threading
 from datetime import date, datetime, timedelta
 
 import gi
@@ -17,7 +18,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
-from . import collectors, stats  # noqa: E402
+from . import collectors, gemini_quota, stats  # noqa: E402
 from .settings import SettingsWindow  # noqa: E402
 
 CONFIG_PATH = os.path.expanduser("~/.config/token-widget/config.json")
@@ -74,7 +75,8 @@ class TokenWidget(Gtk.Window):
         super().__init__(title="Token Widget")
         self.cfg = load_config()
         self.data = None
-        self.limits = None
+        self.limits = {}
+        self.gemini_err = None
         self.updated_at = None
 
         self.set_decorated(False)
@@ -123,6 +125,21 @@ class TokenWidget(Gtk.Window):
         self.refresh()
         self._timer = None
         self.set_refresh(self.cfg["refresh_seconds"])
+        # cota do Gemini: consulta online a cada 5 min, fora da thread da interface
+        self.poll_gemini()
+        GLib.timeout_add_seconds(300, self.poll_gemini)
+
+    def poll_gemini(self):
+        def work():
+            _data, err = gemini_quota.fetch()
+            GLib.idle_add(self._gemini_done, err)
+        threading.Thread(target=work, daemon=True).start()
+        return True
+
+    def _gemini_done(self, err):
+        self.gemini_err = err
+        self.refresh()
+        return False
 
     # ---------------------------------------------------------------- janela
     def place(self):
@@ -184,7 +201,8 @@ class TokenWidget(Gtk.Window):
         usages = collectors.claude_usage() + \
             collectors.gemini_usage(self.cfg.get("gemini_model_names"))
         self.data = stats.summarize(usages)
-        self.limits = collectors.claude_limits()
+        self.limits = {"claude": collectors.claude_limits(),
+                       "gemini": gemini_quota.cached()}
         self.updated_at = GLib.DateTime.new_now_local().format("%H:%M")
         self.area.queue_draw()
         return True
@@ -224,20 +242,23 @@ class TokenWidget(Gtk.Window):
     def draw_limit(self, cr, x, y, w, key, today, color):
         """Linha de texto em `y` e barra logo abaixo."""
         frac, left, right = None, None, None
-        limits = self.limits if key == "claude" else None
+        limits = self.limits.get(key)
         budget = (self.cfg.get("daily_budget") or {}).get(key) or 0
         session = (limits or {}).get("five_hour")
 
         if session:
-            left = "sessão (5 h)"
+            left = "sessão (5 h)" if key == "claude" else "cota da sessão"
             if session.get("renewed"):
-                frac, right = 0.0, "renovada · abra o Claude Code"
+                app = "o Claude Code" if key == "claude" else "o agy"
+                frac, right = 0.0, f"renovada · abra {app}"
             else:
                 frac = session["used_percentage"] / 100
                 right = f"{session['used_percentage']:.0f}%"
                 if session.get("resets_at"):
                     right += " · renova " + datetime.fromtimestamp(
                         session["resets_at"]).strftime("%H:%M")
+                if key == "gemini" and self.gemini_err:
+                    right += " · dado antigo"
                 week = limits.get("seven_day")
                 if week and not week.get("renewed"):
                     right += f" · semana {week['used_percentage']:.0f}%"
@@ -247,7 +268,7 @@ class TokenWidget(Gtk.Window):
         elif key == "claude":
             left = "sessão: abra o Claude Code para carregar"
         else:
-            left = "sessão: o Antigravity não expõe a cota"
+            left = f"cota: {self.gemini_err or 'consultando…'}"
 
         cr.set_font_size(9.5)
         cr.set_source_rgba(1, 1, 1, 0.45)
