@@ -136,8 +136,8 @@ token-widget/
 - Cota do Gemini: endpoints não oficiais; podem mudar sem aviso.
 - Limite do Claude: depende da status line e de assinatura Pro/Max; só atualiza com o Claude Code aberto.
 - Os limites são porcentagens. Nenhuma das ferramentas informa quantos tokens cabem numa sessão.
-- O README está só em português.
+
 
 ## Licença
 
-MIT. Pode usar, modificar e redistribuir, inclusive comercialmente, mantendo o aviso de copyright do arquivo `LICENSE`.
+MIT. Pode usar, modificar e redistribuir, mantendo o aviso de copyright do arquivo `LICENSE`.
