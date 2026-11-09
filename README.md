@@ -29,9 +29,9 @@ sudo apt install gir1.2-secret-1
 
 ### Instalar e abrir
 
-Baixe o repositório, entre na pasta e rode:
-
 ```sh
+git clone https://github.com/ronaldandrade/token-widget.git
+cd token-widget
 ./install.sh
 token-widget
 ```
