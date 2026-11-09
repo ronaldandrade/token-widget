@@ -1,6 +1,12 @@
 # Token Widget
 
-Widget de desktop (GNOME/X11) que mostra quantos tokens de IA você gastou hoje, nos últimos 7 dias e no mês, separado entre **Claude** e **Gemini**, e quanto já usou da cota da sessão de cada um.
+Widget de desktop (GNOME/X11) que mostra quantos tokens de IA você gastou hoje, nos últimos 7 dias e no mês, separado entre **Claude** e **Gemini**, e quanto já usou da cota da sessão de cada um. Interface em português e inglês.
+
+| Português | English |
+|---|---|
+| ![Widget em português](docs/widget-pt.png) | ![Widget in English](docs/widget-en.png) |
+
+![Janela de configurações](docs/settings-pt.png)
 
 ## Como rodar
 
@@ -70,9 +76,12 @@ Ligue em **Configurações… → Gemini → Cota da sessão via login do agy**.
 token-widget/
 ├── token-widget              # launcher: roda o pacote com /usr/bin/python3
 ├── install.sh                # comando, autostart e status line do Claude Code
+├── LICENSE                   # MIT
+├── docs/                     # capturas usadas neste README
 └── token_widget/
     ├── widget.py             # janela GTK, desenho com cairo, menu e timers
     ├── settings.py           # janela de Configurações
+    ├── i18n.py               # textos em português e inglês
     ├── collectors.py         # lê o uso de tokens do Claude Code e do Antigravity
     ├── protobuf.py           # decodificador mínimo de protobuf (sem schema)
     ├── stats.py              # soma hoje / 7 dias / mês e formata os números
@@ -100,13 +109,16 @@ token-widget/
 - A barra fica amarela a partir de 80% e vermelha em 100%. Quando o horário de renovação passa, o widget mostra "renovada" até chegar um dado novo.
 - Sem limite de sessão disponível, vale a meta diária manual, se configurada.
 
-**Configuração.** Pela janela **Configurações…** dá para ajustar opacidade, "sempre na frente", a cota do Gemini, o intervalo de atualização e a meta diária; tudo é aplicado na hora. Os valores ficam em `~/.config/token-widget/config.json`, que também pode ser editado à mão (feche e abra o widget depois):
+**Idioma.** Os textos ficam em `i18n.py`. Com `language` em `"auto"`, o widget segue o idioma do sistema (`LANGUAGE`/`LANG`): português se começar com `pt`, inglês nos outros casos. A status line do Claude Code segue sempre o idioma do sistema.
+
+**Configuração.** Pela janela **Configurações…** dá para ajustar idioma, opacidade, "sempre na frente", a cota do Gemini, o intervalo de atualização e a meta diária; tudo é aplicado na hora. Os valores ficam em `~/.config/token-widget/config.json`, que também pode ser editado à mão (feche e abra o widget depois):
 
 ```json
 {
   "refresh_seconds": 60,
   "opacity": 0.88,
   "always_on_top": false,
+  "language": "auto",
   "gemini_quota": false,
   "gemini_model_names": { "1418": "Gemini 3.8 Flash" },
   "daily_budget": { "claude": 2000000, "gemini": 500000 }
@@ -124,4 +136,8 @@ token-widget/
 - Cota do Gemini: endpoints não oficiais; podem mudar sem aviso.
 - Limite do Claude: depende da status line e de assinatura Pro/Max; só atualiza com o Claude Code aberto.
 - Os limites são porcentagens. Nenhuma das ferramentas informa quantos tokens cabem numa sessão.
-- Interface só em português.
+- O README está só em português.
+
+## Licença
+
+MIT. Pode usar, modificar e redistribuir, inclusive comercialmente, mantendo o aviso de copyright do arquivo `LICENSE`.
