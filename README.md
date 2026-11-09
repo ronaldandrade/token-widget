@@ -19,12 +19,16 @@ Precisa do Python do sistema com GTK3 (`python3-gi`, já vem no Ubuntu).
 ```
 
 - Arraste com o botão esquerdo para mover (a posição fica salva).
-- Botão direito: Atualizar / Sair.
+- Botão direito: Configurações…, Sempre na frente, Atualizar, Sair.
 - Atualiza sozinho a cada 60 s.
 
 ## Configuração
 
-`~/.config/token-widget/config.json` é criado ao mover o widget. Campos opcionais:
+Pelo menu **Configurações…** (botão direito) dá para ajustar opacidade, "sempre na frente",
+intervalo de atualização e meta diária; tudo é aplicado na hora.
+
+Os valores ficam em `~/.config/token-widget/config.json`, que também pode ser editado à mão
+(feche e abra o widget depois). Campos:
 
 ```json
 {

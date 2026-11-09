@@ -18,6 +18,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
 from . import collectors, stats  # noqa: E402
+from .settings import SettingsWindow  # noqa: E402
 
 CONFIG_PATH = os.path.expanduser("~/.config/token-widget/config.json")
 DEFAULT_CONFIG = {
@@ -100,11 +101,16 @@ class TokenWidget(Gtk.Window):
         self.connect("configure-event", self.on_configure)
         self.connect("destroy", Gtk.main_quit)
 
+        self.settings_win = None
         self.menu = Gtk.Menu()
+        cfg_item = Gtk.MenuItem(label="Configurações…")
+        cfg_item.connect("activate", lambda *_: self.open_settings())
+        self.menu.append(cfg_item)
         top = Gtk.CheckMenuItem(label="Sempre na frente")
         top.set_active(bool(self.cfg.get("always_on_top")))
         top.connect("toggled", self.on_toggle_top)
         self.menu.append(top)
+        self.top_item = top
         for label, cb in (("Atualizar", lambda *_: self.refresh()),
                           ("Sair", lambda *_: Gtk.main_quit())):
             item = Gtk.MenuItem(label=label)
@@ -114,7 +120,8 @@ class TokenWidget(Gtk.Window):
 
         self.place()
         self.refresh()
-        GLib.timeout_add_seconds(max(10, int(self.cfg["refresh_seconds"])), self.refresh)
+        self._timer = None
+        self.set_refresh(self.cfg["refresh_seconds"])
 
     # ---------------------------------------------------------------- janela
     def place(self):
@@ -125,6 +132,19 @@ class TokenWidget(Gtk.Window):
                 Gdk.Display.get_default().get_monitor(0)
             r = geo.get_workarea()
             self.move(r.x + r.width - W - 24, r.y + 24)
+
+    def set_refresh(self, seconds):
+        seconds = max(10, int(seconds))
+        self.cfg["refresh_seconds"] = seconds
+        if self._timer:
+            GLib.source_remove(self._timer)
+        self._timer = GLib.timeout_add_seconds(seconds, self.refresh)
+
+    def open_settings(self):
+        if self.settings_win:
+            self.settings_win.present()
+        else:
+            self.settings_win = SettingsWindow(self)
 
     def apply_layer(self):
         on_top = bool(self.cfg.get("always_on_top"))
