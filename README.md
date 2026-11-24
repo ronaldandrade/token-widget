@@ -6,7 +6,6 @@ Widget de desktop (GNOME/X11) que mostra quantos tokens de IA você gastou hoje,
 |---|---|
 | ![Widget em português](docs/widget-pt.png) | ![Widget in English](docs/widget-en.png) |
 
-![Janela de configurações](docs/settings-pt.png)
 
 ## Como rodar
 
